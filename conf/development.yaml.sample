@@ -1,0 +1,16 @@
+database:
+  dsn: "dbi:Oracle:host=host;sid=host"
+  user: yada
+  pass: host
+  opt:  LongTruncOk 
+
+
+#type mapped to so terms that could be resolved
+resolve:
+  gene: 1
+  mrna: 1
+  transcript: 1
+  polypeptide: 1
+
+base:
+  redirect: 'http://host'
