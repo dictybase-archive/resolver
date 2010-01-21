@@ -58,11 +58,11 @@ sub check_map {
 }
 
 sub map_to_url {
-    my ($self,  $c)   = @_;
+    my ( $self, $c ) = @_;
     my $id       = $self->context->stash('id');
     my $type     = $self->context->stash('type');
     my $base_url = $self->context->req->url->host;
-    $base_url = $base_url ? 'http://'.$base_url. '/' : '/';
+    $base_url = $base_url ? 'http://' . $base_url . '/' : '/';
 
     $self->app->log->debug("got $id");
     $self->app->log->debug("got base $base_url");
@@ -72,7 +72,9 @@ sub map_to_url {
 
     #global prepend defined
     if ( defined $config->{resolve}->{prepend} ) {
-        $path = $self->prepend . '/' . $path;
+        if ( not defined $config->{resolve}->{type}->{$type}->{nospecies} ) {
+            $path = $self->prepend . '/' . $path;
+        }
 
     }
     return $base_url . $path;
@@ -122,16 +124,14 @@ sub transcript {
 sub est {
     my ( $self, $id ) = @_;
     my $config = $self->app->config;
-    my $type = $self->context->stash('type');
-    return 'db/cgi-bin?feature_pl?primary_id=' . $id
-        if defined $config->{resolve}->{type}->{$type}->{noprefix};
+    my $type   = $self->context->stash('type');
+    return 'db/cgi-bin/feature_page.pl?primary_id=' . $id;
 
-    return $config->{resolve}->{type}->{$type}->{prefix}
-        . '/db/cgi-bin?feature_pl?primary_id='
-        . $id
-        if defined $config->{resolve}->{type}->{$type}->{prefix};
+    #return $config->{resolve}->{type}->{$type}->{prefix}
+    #    . '/db/cgi-bin?feature_pl?primary_id='
+    #    . $id
+    #    if defined $config->{resolve}->{type}->{$type}->{prefix};
 }
-
 
 sub polypeptide {
 }

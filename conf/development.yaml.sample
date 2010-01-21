@@ -1,7 +1,7 @@
 database:
-  dsn: "dbi:Oracle:host=host;sid=host"
-  user: user
-  pass: pass
+  dsn: "dbi:Oracle:host=192.168.60.10;sid=dictybase"
+  user: DPUR_CHADO
+  pass: DPUR_CHADO
   opt:  LongTruncOk 
 
 #which module to load at runtime which does the url mapping
@@ -27,6 +27,7 @@ resolve:
  type:
   est:
    noprefix: 1
+   nospecies: 1
   chromosome:
    noprefix: 1
   polypeptide:
