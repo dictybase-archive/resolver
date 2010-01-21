@@ -1,16 +1,40 @@
 database:
   dsn: "dbi:Oracle:host=host;sid=host"
-  user: yada
-  pass: host
+  user: user
+  pass: pass
   opt:  LongTruncOk 
 
+#which module to load at runtime which does the url mapping
+#currently a Moose role
+module: 
+  #optional otherwise Resolver::Map will be assumed
+  #namespace:
+  name: MultiGenome
 
-#type mapped to so terms that could be resolved
+#Any specific type for SO type 
+#prepend species name is global
+#direct overrides that
 resolve:
-  gene: 1
-  mrna: 1
-  transcript: 1
-  polypeptide: 1
+ types: 
+    - gene
+    - polypeptide
+    - est
+    - chromosome
+    - mrna
+    - rrna
+    - trna
+ prepend: species
+ type:
+  est:
+   noprefix: 1
+  chromosome:
+   noprefix: 1
+  polypeptide:
+   prefix: protein
+  mrna:
+   prefix: feature
+  rrna:
+   prefix: feature
+  trna:
+   prefix: feature
 
-base:
-  redirect: 'http://host'
