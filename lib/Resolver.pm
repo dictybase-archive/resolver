@@ -18,7 +18,7 @@ sub startup {
     my $self = shift;
 
     #default log level
-    $self->log->level( $ENV{MOJO_DEBUG} ? $ENV{MOJO_DEBUG} : 'debug' );
+    $self->log->level($ENV{MOJO_DEBUG} ? $ENV{MOJO_DEBUG}: 'debug');
 
     $self->load_config;
     $self->connect_to_db;
