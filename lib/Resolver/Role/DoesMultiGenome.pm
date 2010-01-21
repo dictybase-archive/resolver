@@ -58,15 +58,15 @@ sub check_map {
 }
 
 sub map_to_url {
-    my ($self)   = @_;
+    my ($self,  $c)   = @_;
     my $id       = $self->context->stash('id');
     my $type     = $self->context->stash('type');
-    my $base_url = $self->context->req->url->base;
+    my $base_url = $self->context->req->url->host;
+    $base_url = $base_url ? 'http://'.$base_url. '/' : '/';
 
     $self->app->log->debug("got $id");
+    $self->app->log->debug("got base $base_url");
     my $path = $self->$type($id);
-
-    #my $url  = $base_url . '/' . $path;
 
     my $config = $self->app->config;
 
@@ -75,7 +75,7 @@ sub map_to_url {
         $path = $self->prepend . '/' . $path;
 
     }
-    return $base_url . '/' . $path;
+    return $base_url . $path;
 }
 
 #this is kind of this role specific; kind of hard coded
