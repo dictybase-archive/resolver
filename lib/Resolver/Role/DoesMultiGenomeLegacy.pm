@@ -1,32 +1,198 @@
-package Resolver::Controller::Map;
+package Resolver::Role::DoesMultiGenomeLegacy;
+
+use warnings;
+use strict;
+
+use version; our $VERSION = qv('1.0.0');
 
 # Other modules:
-use base 'Mojolicious::Controller';
-use Moose;
+use List::MoreUtils qw/any/;
+use Moose::Role;
+use MooseX::Aliases;
 
 # Module implementation
-#
 
-has 'context' => (
-	is => 'rw', 
-	isa => 'Mojolicious::Context', 
+has 'is_legacy' => (
+    traits  => ['Bool'],
+    is      => 'rw',
+    isa     => 'Bool',
+    default => 0,
+    handles => {
+        legacy        => 'set',
+        unset_legacy    => 'unset',
+        toggle_legacy => 'toggle',
+        not_legacy     => 'not'
+    },
 );
 
-before 'map' => sub {
-	my ($self,  $c) = @_;
-	$self->context($c);
-};
 
-sub map {
+
+sub validate {
     my ( $self, $c ) = @_;
-    my $url = $self->map_to_url($c);
-    $self->app->log->debug("got url $url");
-    $c->res->code(301);
-    $c->res->headers->location($url);
-    return;
+    my $app = $self->app;
+    my $id  = $c->stash('id');
+    my $model;
+    if ( $self->check_legacy_id($id) ) {
+        $model = $self->app->legacy_model;
+    }
+    else {
+        $model = $app->model;
+    }
+    my $query_row = $model->resultset('Sequence::Feature')->find(
+        {   'is_deleted'       => 0,
+            'dbxref.accession' => $id,
+        },
+        {   join     => [qw/dbxref organism/],
+            prefetch => [qw/type/],
+            select   => [
+                'feature_id',           'type_id',
+                'organism_id',          'organism.species',
+                'organism.organism_id', 'organism.genus'
+            ],
+        }
+    );
+
+    if ( !$query_row ) {
+        $c->res->code(404);
+        $self->render( text => "Given id $id not found" );
+        return;
+    }
+
+    my $type = $query_row->type->name;
+    $self->app->log->debug("got type $type");
+    if ( !$self->check_map($type) ) {
+        $c->res->code(404);
+        $self->render(
+            text => "Sorry cannot resolve " . $type . ' and ' . $id );
+        return;
+    }
+    $self->app->log->debug("It can map $type");
+
+    $c->stash( type => lc $type );
+    $c->stash(
+        run_type => $self->is_legacy ? 'legacy_' . lc $type : lc $type );
+    $c->stash( feature => $query_row );
+    $c->stash(species => $query_row->organism->species);
+    return 1;
 }
 
-no Moose;
+sub check_legacy_id {
+    my ( $self, $id ) = @_;
+    if ( $id =~ /^DDB\w{0,2}\d+$/ ) {
+        $self->legacy;
+        $self->is_legacy;
+    }
+}
+
+sub check_map {
+    my ( $self, $type ) = @_;
+    my $conf = $self->app->config;
+    any {$type} @{ $conf->{resolve}->{types} };
+}
+
+sub map_to_url {
+    my ( $self, $c ) = @_;
+    my $id       = $self->context->stash('id');
+    my $type     = $self->context->stash('type');
+    my $run_type = $self->context->stash('run_type');
+    my $base_url = $self->context->req->url->host;
+
+    $base_url = $base_url ? 'http://' . $base_url . '/' : '/';
+
+    $self->app->log->debug("got $id");
+    $self->app->log->debug("got base $base_url");
+    $self->app->log->debug("got run type $run_type");
+    my $path = $self->$run_type($id);
+
+    my $config = $self->app->config;
+
+    #global prepend defined
+    if ( defined $config->{resolve}->{prepend} ) {
+        if ( not defined $config->{resolve}->{type}->{$type}->{nospecies} ) {
+            $path = $self->prepend . '/' . $path;
+        }
+
+    }
+    return $base_url . $path;
+}
+
+#this is kind of this role specific; kind of hard coded
+sub prepend {
+    my $self    = shift;
+    return $self->context->stash('species');
+}
+
+sub gene {
+    my ( $self, $id ) = @_;
+    $self->app->log->debug("got $id from gene");
+    my $conf = $self->app->config;
+    my $type = 'gene';
+    my $prepend
+        = $conf->{resolve}->{type}->{$type}->{prefix}
+        ? $conf->{resolve}->{type}->{$type}->{prefix}
+        : $type;
+    return $prepend . '/' . $id;
+}
+
+sub transcript {
+    my ( $self, $id ) = @_;
+    my $conf = $self->app->config;
+    my $type = $self->context->stash('type');
+    my $prepend
+        = $conf->{resolve}->{type}->{$type}->{prefix}
+        ? $conf->{resolve}->{type}->{$type}->{prefix}
+        : $type;
+    my $feature = $self->context->stash('feature');
+    my $gene    = $feature->search_related(
+        'feat_relationship_subject_ids',
+        { 'type.name' => 'part_of', },
+        { join        => 'type' }
+        )->search_related(
+        'object',
+        { 'type_2.name' => 'gene' },
+        { join          => 'type', 'rows' => 1 }
+        )->single;
+    my $gene_url = $self->gene( $gene->dbxref->accession );
+    return $gene_url . '/' . $prepend . '/' . $id;
+}
+
+sub legacy_est {
+    my ( $self, $id ) = @_;
+    my $type   = $self->context->stash('type');
+    my $species = $self->context->stash('species');
+    return $species.'/db/cgi-bin/feature_page.pl?primary_id=' . $id;
+}
+
+sub est {
+    my ( $self, $id ) = @_;
+    my $type   = $self->context->stash('type');
+    return 'db/cgi-bin/feature_page.pl?primary_id=' . $id;
+
+    #return $config->{resolve}->{type}->{$type}->{prefix}
+    #    . '/db/cgi-bin?feature_pl?primary_id='
+    #    . $id
+    #    if defined $config->{resolve}->{type}->{$type}->{prefix};
+}
+
+sub polypeptide {
+}
+
+alias rrna => 'transcript'; 
+alias trna => 'transcript';
+alias mrna => 'transcript';
+alias legacy_gene => 'gene';
+alias legacy_rrna => 'transcript';
+alias legacy_mrna => 'transcript';
+alias legacy_trna => 'transcript';
+alias chromosome => 'est';
+alias contig => 'est';
+alias supercontig => 'est';
+alias legacy_chromosome => 'legacy_est';
+alias legacy_contig => 'legacy_est';
+
+
+#
+no Moose::Role;
 
 1;    # Magic true value required at end of module
 

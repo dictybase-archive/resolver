@@ -1,15 +1,35 @@
 database:
-  dsn: "dbi:Oracle:host=192.168.60.10;sid=dictybase"
-  user: DPUR_CHADO
-  pass: DPUR_CHADO
+  dsn: "dbi:Oracle:host=host;sid=host"
+  user: user
+  pass: user
   opt:  LongTruncOk 
 
 #which module to load at runtime which does the url mapping
 #currently a Moose role
+#namesapce is optional otherwise Resolver::Map will be assumed
+#module specific option could be given under option. At this point there are two
+#that exist for DoesMultiGenomeLegacy roles,  alias for adding alias methods and
+#addition database connection that will be used for fetching data from legacy database
+#The legacy database is assumed to hold only one species and currently for all ids
+#residing in that database the species name is prepended. This implementation might change
+#once we have a standardized canonical url for chromosome, EST and any other top level
+#sequences types.
+#
+#It also applies this Moose role to all the controllers,  need to refactor that part
+#later.
 module: 
-  #optional otherwise Resolver::Map will be assumed
   #namespace:
-  name: MultiGenome
+  name: DoesMultiGenomeLegacy
+  option:
+     alias: 1
+     database:
+         dsn: "dbi:Oracle:host=host;sid=sid"
+         user: user
+         pass: user
+         opt : LongTruncOk
+
+
+
 
 #Any specific type for SO type 
 #prepend species name is global
@@ -23,6 +43,7 @@ resolve:
     - mrna
     - rrna
     - trna
+    - supercontig
  prepend: species
  type:
   est:
@@ -30,6 +51,9 @@ resolve:
    nospecies: 1
   chromosome:
    noprefix: 1
+  supercontig:
+   noprefix: 1
+   nospecies: 1
   polypeptide:
    prefix: protein
   mrna:
