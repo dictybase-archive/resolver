@@ -51,6 +51,7 @@ resolve:
    nospecies: 1
   chromosome:
    noprefix: 1
+   nospecies: 1
   supercontig:
    noprefix: 1
    nospecies: 1
