@@ -35,6 +35,11 @@ has 'model' => (
     is  => 'rw'
 );
 
+has 'legacy_model' => (
+    isa => 'Bio::Chado::Schema',
+    is  => 'rw'
+);
+
 has 'module_config' => (
     isa     => 'HashRef',
     is      => 'rw',
@@ -114,17 +119,19 @@ sub connect_to_db {
             $db_conf->{opt} ? { $db_conf->{opt} => 1 } : {} );
 
         #adding attribute at runtime
-        my $meta = __PACKAGE__->meta;
-        $meta->add_attribute(
-            'legacy_model',
-            (   isa => 'Bio::Chado::Schema',
-                is  => 'rw'
-            )
-        );
+        #my $meta = __PACKAGE__->meta;
+        #$meta->add_attribute(
+        #    'legacy_model',
+        #    (   isa => 'Bio::Chado::Schema',
+        #        is  => 'rw'
+        #    )
+        #);
         $self->legacy_model($legacy_schema);
     }
 }
 
+
+__PACKAGE__->meta->make_immutable(inline_constructor => 0);
 no Moose;
 
 1;

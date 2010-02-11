@@ -7,6 +7,7 @@ my $builder = Module::Build->new(
     module_name  => 'Resolver',
     license      => 'perl',
     dist_author  => 'Siddhartha Basu <siddhartha-basu@northwestern.edu>',
+    dist_abstract => 'Module for resolving Ids', 
     dist_version => '0.1',
     requires     => {
         'Mojo'          => '0.991244',

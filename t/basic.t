@@ -49,7 +49,7 @@ like( $tx->res->headers->location,
 unlike( $tx->res->headers->location,
     qr/purpureum/,
     'should not have species name in the redirected header of est' );
-diag( Dumper $tx->res->headers->location );
+#diag( Dumper $tx->res->headers->location );
 
 #for supercontig
 $tx = Mojo::Transaction->new_get('/id/DPU0000186');
