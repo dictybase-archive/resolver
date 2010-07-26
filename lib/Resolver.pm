@@ -2,7 +2,6 @@ package Resolver;
 
 use strict;
 use warnings;
-use local::lib '/home/ubuntu/dictyBase/Libs/modern-perl';
 use Bio::Chado::Schema;
 use YAML qw/LoadFile/;
 use File::Spec::Functions;
@@ -19,7 +18,6 @@ has 'config' => (
 
 sub _build_config {
     my $self = shift;
-
     my $file = catfile( $self->home->rel_dir('conf'), $self->mode . '.yaml' );
     if ( !-e $file ) {
         $self->log->debug("conf file $file does not exist");
