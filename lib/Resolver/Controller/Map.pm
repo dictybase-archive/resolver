@@ -4,6 +4,7 @@ package Resolver::Controller::Map;
 use Moose;
 use Moose::Util qw/apply_all_roles/;
 use namespace::autoclean;
+use Carp::Always;
 extends 'Mojolicious::Controller';
 
 # Module implementation
@@ -14,23 +15,24 @@ has 'context' => (
 	isa => 'Mojolicious::Context', 
 );
 
-before 'map' => sub {
+before 'resolve' => sub {
 	my ($self,  $c) = @_;
 	$self->context($c);
 };
 
-sub map {
+sub resolve {
     my ( $self, $c ) = @_;
     my $mapper_name = $c->stash('mapper_name');
     my $role = 'Resolver::Role::'.$self->app->config->mapper->$mapper_name->module;
-    apply_all_roles($self, $role)
+    $self->app->log->debug("role name $role");
+    apply_all_roles($self, $role);
+    $self->app->log->debug("applied $role");
     my $url = $self->map_to_url($c);
     $self->app->log->debug("got url $url");
     $c->res->code(301);
     $c->res->headers->location($url);
     return;
 }
-
 
 1;    # Magic true value required at end of module
 

@@ -33,11 +33,25 @@ sub revalidate {
     my $model;
     if ( $self->check_legacy_id($id) ) {
         if ( !$app->has_legacy_model ) {
-            my $legacy_conf = $app->mapper->$mapper_name->option->database;
+            my $legacy_conf = $app->config->mapper->$mapper_name->option->database;
+            my $opt
+                = $legacy_conf->meta->has_attribute('opt')
+                ? $legacy_conf->opt
+                : {};
             $model = Bio::Chado::Schema->connect(
                 $legacy_conf->dsn, $legacy_conf->user,
-                $legacy_conf->pass, { $legacy_conf->opt => 1 }
+                $legacy_conf->pass, { $opt => 1 }
             );
+            my $source = $model->source('Sequence::Feature');
+            $source->add_column(
+                is_deleted => {
+                    data_type     => 'boolean',
+                    default_value => 'false',
+                    is_nullable   => 0,
+                    size          => 1
+                }
+            );
+
             $app->legacy_model($model);
         }
         else {
@@ -79,7 +93,10 @@ sub revalidate {
 
     $c->stash( type => lc $type );
     $c->stash(
-        run_type => $self->is_legacy ? 'legacy_' . lc $type : lc $type );
+        run_type => $self->is_legacy
+        ? 'legacy_' . lc $type
+        : lc $type
+    );
     $c->stash( feature => $query_row );
     $c->stash( species => $query_row->organism->species );
     return 1;
@@ -101,7 +118,7 @@ sub check_map {
 
 sub map_to_url {
     my ( $self, $c ) = @_;
-    $self->revalidate;
+    $self->revalidate($c);
 
     my $id       = $self->context->stash('id');
     my $type     = $self->context->stash('type');
@@ -121,43 +138,50 @@ sub map_to_url {
 
     #global prepend defined
     if ( $mapper->meta->has_attribute('prepend') ) {
-        if ( !$mapper->$type->meta->has_attribute('nospecies') ) {
-            $path = $self->prepend . '/' . $path;
+        if ( !$mapper->type->meta->has_attribute($type) ) {
+            $path = $self->prepend($c) . '/' . $path;
         }
-
+        elsif (!$mapper->type->$type->meta->has_attribute('nospecies') ) {
+            $path = $self->prepend($c) . '/' . $path;
+        }
     }
     return $base_url . $path;
 }
 
 #this is kind of this role specific; kind of hard coded
 sub prepend {
-    my $self = shift;
-    return $self->context->stash('species');
+    my ( $self, $c ) = @_;
+    return $c->stash('species');
 }
 
 sub gene {
-    my ( $self, $id,  $mapper_name ) = @_;
+    my ( $self, $id, $mapper_name ) = @_;
     $self->app->log->debug("got $id from gene");
     my $mapper = $self->app->config->mapper->$mapper_name;
-    my $type = 'gene';
-    my $prepend
-        = $mapper->type->$type->meta->has_attribute('prefix')
-        ? $mapper->type->$type->prefix
-        : $type;
+    my $type   = 'gene';
+    my $prepend;
+    if (    $mapper->type->meta->has_attribute($type)
+        and $mapper->type->$type->meta->has_attribute('prefix') )
+    {
+        $prepend = $mapper->type->$type->prefix;
+    }
+    else {
+        $prepend = $type;
+    }
     return $prepend . '/' . $id;
 }
 
 sub transcript {
     my ( $self, $id, $mapper_name ) = @_;
     my $mapper = $self->app->config->mapper->$mapper_name;
-    my $type = $self->context->stash('type');
-	my $prepend
+    my $type   = $self->context->stash('type');
+    my $prepend
         = $mapper->type->$type->meta->has_attribute('prefix')
         ? $mapper->type->$type->prefix
         : $type;
     my $feature = $self->context->stash('feature');
     my $gene    = $feature->search_related(
-        'feat_relationship_subjects',
+        'feature_relationship_subjects',
         { 'type.name' => 'part_of', },
         { join        => 'type' }
         )->search_related(
@@ -165,12 +189,12 @@ sub transcript {
         { 'type_2.name' => 'gene' },
         { join          => 'type', 'rows' => 1 }
         )->single;
-    my $gene_url = $self->gene( $gene->dbxref->accession );
+    my $gene_url = $self->gene( $gene->dbxref->accession, $mapper_name );
     return $gene_url . '/' . $prepend . '/' . $id;
 }
 
 sub legacy_est {
-    my ( $self, $id , $mapper_name) = @_;
+    my ( $self, $id, $mapper_name ) = @_;
     my $type    = $self->context->stash('type');
     my $species = $self->context->stash('species');
     return $species . '/db/cgi-bin/feature_page.pl?primary_id=' . $id;

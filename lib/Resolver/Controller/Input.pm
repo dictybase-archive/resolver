@@ -5,6 +5,10 @@ use strict;
 use version; our $VERSION = qv('1.0.0');
 
 # Other modules:
+use Moose;
+use Carp::Always;
+use namespace::autoclean;
+extends 'Mojolicious::Controller';
 
 # Module implementation
 #
@@ -14,11 +18,19 @@ sub validate {
     my $config = $self->app->config;
     my $id     = $c->stash('id');
     for my $name ( $config->all_mapper ) {
-        if ( $config->mapper->$name->match =~ /$id/ ) {
+    	my $regexp = $config->mapper->$name->match;
+        $self->app->log->debug("got regexp $regexp");
+        if ( $id =~ /$regexp/ ) {
             $c->stash( mapper_name => $name );
+            $self->app->log->debug("mapper $name");
+            $self->app->log->debug("matches true");
             return 1;
         }
     }
+    $self->app->log->debug("matches false");
+    $c->res->code(404);
+    $self->render(text => "Given id $id cannot be mapped");
+    return 0;
 }
 
 1;    # Magic true value required at end of module

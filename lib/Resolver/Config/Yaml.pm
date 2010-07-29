@@ -24,7 +24,7 @@ sub load {
     my ($str)
         = pos_validated_list( \@_,
         { isa => 'HashRef|ArrayRef', coerce => 1 } );
-    apply_all_roles( $self, Resolver::Role::YamlEater => { data => $str } );
+    apply_all_roles( $self, 'Resolver::Role::YamlEater' => { data => $str } );
 }
 
 1;    # Magic true value required at end of module

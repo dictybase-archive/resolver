@@ -24,7 +24,6 @@ is( $tx->res->code, 301, 'got redirection for gene id' );
 like( $tx->res->headers->location,
     qr/purpureum/,
     'has purpureum as species in the redirected header of gene' );
-
 #for transcript
 $tx = Mojo::Transaction->new_get('/id/DPU0051089');
 
@@ -74,7 +73,7 @@ $client->process_app( 'Resolver', $tx );
 
 # Test response
 is( $tx->res->code, 404, 'Got correct response' );
-like( $tx->res->body, qr/not found/, 'the id not found' );
+like( $tx->res->body, qr/cannot be mapped/, 'the id not found' );
 
 #some dictybase id
 $tx = Mojo::Transaction->new_get('/id/DDB_G0277399');
@@ -117,4 +116,3 @@ like( $tx->res->headers->location,
 like( $tx->res->headers->location,
     qr/discoideum/,
     'should have species name in the redirected header of est' );
-

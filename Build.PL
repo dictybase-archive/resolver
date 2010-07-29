@@ -13,9 +13,9 @@ my $builder = Module::Build->new(
         'Mojo'          => '0.991244',
         'Apache2::Mojo' => '0.0047', 
         'YAML' => '', 
-        'Module::Find' => '', 
-        'Moose' => '0.94', 
-        'Bio::Chado::Schema' => '0.05000'
+        'Moose' => '1.09', 
+        'Bio::Chado::Schema' => '0.05703', 
+        'MooseX::Role::Parameterized' => '0.19'
     },
     build_requires => {
     	 'Archive::Extract' => '',

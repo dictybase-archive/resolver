@@ -6,6 +6,7 @@ use File::Spec::Functions;
 use Moose;
 use Resolver::Config::Yaml;
 use namespace::autoclean;
+use Carp::Always;
 extends 'Mojolicious';
 
 has 'config' => (
@@ -21,6 +22,7 @@ sub _build_config {
         $self->log->debug("conf file $file does not exist");
         return;
     }
+
     #Load YAML file
     Resolver::Config::Yaml->new->load($file);
 }
@@ -31,11 +33,10 @@ has 'model' => (
 );
 
 has 'legacy_model' => (
-    isa => 'Bio::Chado::Schema',
-    is  => 'rw', 
+    isa       => 'Bio::Chado::Schema',
+    is        => 'rw',
     predicate => 'has_legacy_model'
 );
-
 
 # This method will run once at server start
 sub startup {
@@ -63,20 +64,23 @@ sub startup {
 sub connect_to_db {
     my $self     = shift;
     my $database = $self->config->database;
-    my $schema
-        = Bio::Chado::Schema->connect( $database->dsn, $database->user,
-        $database->pass,
-        $database->has_opt ? { $database->opt => 1 } : {} );
-    my $source = $schema->source('Sequence::Feature');
-    $source->add_column(
-        is_deleted => {
-            data_type     => 'boolean',
-            default_value => 'false',
-            is_nullable   => 0,
-            size          => 1
-        }
-    );
-    $self->model($schema);
+    my $opt      = $database->meta->has_attribute('opt')
+        ? $database->opt
+            : {};
+            my $schema = Bio::Chado::Schema->connect(
+                $database->dsn, $database->user,
+                $database->pass, { $opt => 1 }
+            );
+            my $source = $schema->source('Sequence::Feature');
+            $source->add_column(
+                is_deleted => {
+                    data_type     => 'boolean',
+                    default_value => 'false',
+                    is_nullable   => 0,
+                    size          => 1
+                }
+            );
+            $self->model($schema);
 
     #additional database connection if any through module option
     #my $module = $self->module_config;
@@ -87,18 +91,16 @@ sub connect_to_db {
     #        $db_conf->{pass},
     #        $db_conf->{opt} ? { $db_conf->{opt} => 1 } : {} );
 
-    #adding attribute at runtime
-    #my $meta = __PACKAGE__->meta;
-    #$meta->add_attribute(
-    #    'legacy_model',
-    #    (   isa => 'Bio::Chado::Schema',
-    #        is  => 'rw'
-    #    )
-    #);
-    #$self->legacy_model($legacy_schema);
-    #}
-}
+            #adding attribute at runtime
+            #my $meta = __PACKAGE__->meta;
+            #$meta->add_attribute(
+            #    'legacy_model',
+            #    (   isa => 'Bio::Chado::Schema',
+            #        is  => 'rw'
+            #    )
+            #);
+            #$self->legacy_model($legacy_schema);
+            #}
+    }
 
-__PACKAGE__->meta->make_immutable;
-
-1;
+    1;
