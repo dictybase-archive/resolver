@@ -1,17 +1,15 @@
 package Resolver;
 
 use strict;
-use warnings;
 use Bio::Chado::Schema;
-use YAML qw/LoadFile/;
 use File::Spec::Functions;
-use Module::Find;
 use Moose;
-use Moose::Util;
+use Resolver::Config::Yaml;
+use namespace::autoclean;
 extends 'Mojolicious';
 
 has 'config' => (
-    isa        => 'HashRef',
+    isa        => 'Resolver::Config::Yaml',
     is         => 'rw',
     lazy_build => 1,
 );
@@ -23,9 +21,8 @@ sub _build_config {
         $self->log->debug("conf file $file does not exist");
         return;
     }
-
     #Load YAML file
-    return LoadFile($file);
+    Resolver::Config::Yaml->new->load($file);
 }
 
 has 'model' => (
@@ -35,25 +32,10 @@ has 'model' => (
 
 has 'legacy_model' => (
     isa => 'Bio::Chado::Schema',
-    is  => 'rw'
+    is  => 'rw', 
+    predicate => 'has_legacy_model'
 );
 
-has 'module_config' => (
-    isa     => 'HashRef',
-    is      => 'rw',
-    lazy    => 1,
-    default => sub {
-        my $self = shift;
-        $self->config->{module};
-    },
-);
-
-before 'module_config' => sub {
-    my $self = shift;
-    if ( !$self->config ) {
-        $self->load_config;
-    }
-};
 
 # This method will run once at server start
 sub startup {
@@ -61,75 +43,62 @@ sub startup {
 
     #default log level
     $self->log->level( $ENV{MOJO_DEBUG} ? $ENV{MOJO_DEBUG} : 'debug' );
-
     $self->connect_to_db;
-    $self->inject_role;
 
     # Routes
     my $r = $self->routes;
     $r->namespace('Resolver::Controller');
 
     my $bridge = $r->bridge->to(
-        controller => 'map',
+        controller => 'input',
         action     => 'validate'
     );
     $bridge->route('/id/:id')->to(
         controller => 'map',
-        action     => 'map'
+        action     => 'resolve'
     );
 
 }
 
-sub inject_role {
-    my $self = shift;
-
-    my $module_conf = $self->module_config;
-    my $role_namespace
-        = defined $module_conf->{namespace}
-        ? $module_conf->{namespace}
-        : $self->home->app_class . '::Role';
-
-    my $role_name = $role_namespace . '::' . $module_conf->{name};
-
-    my $contrl_namespace = $self->home->app_class . '::Controller';
-    my @controllers      = useall $contrl_namespace;
-
-    #need to refactor this alias dynamically
-    Moose::Util::apply_all_roles( $_->meta, ($role_name) ) for @controllers;
-}
-
 sub connect_to_db {
     my $self     = shift;
-    my $database = $self->config->{database};
+    my $database = $self->config->database;
     my $schema
-        = Bio::Chado::Schema->connect( $database->{dsn}, $database->{user},
-        $database->{pass},
-        $database->{opt} ? { $database->{opt} => 1 } : {} );
+        = Bio::Chado::Schema->connect( $database->dsn, $database->user,
+        $database->pass,
+        $database->has_opt ? { $database->opt => 1 } : {} );
+    my $source = $schema->source('Sequence::Feature');
+    $source->add_column(
+        is_deleted => {
+            data_type     => 'boolean',
+            default_value => 'false',
+            is_nullable   => 0,
+            size          => 1
+        }
+    );
     $self->model($schema);
 
     #additional database connection if any through module option
-    my $module = $self->module_config;
-    if ( defined $module->{option}->{database} ) {
-        my $db_conf = $module->{option}->{database};
-        my $legacy_schema
-            = Bio::Chado::Schema->connect( $db_conf->{dsn}, $db_conf->{user},
-            $db_conf->{pass},
-            $db_conf->{opt} ? { $db_conf->{opt} => 1 } : {} );
+    #my $module = $self->module_config;
+    #if ( defined $module->{option}->{database} ) {
+    #    my $db_conf = $module->{option}->{database};
+    #    my $legacy_schema
+    #        = Bio::Chado::Schema->connect( $db_conf->{dsn}, $db_conf->{user},
+    #        $db_conf->{pass},
+    #        $db_conf->{opt} ? { $db_conf->{opt} => 1 } : {} );
 
-        #adding attribute at runtime
-        #my $meta = __PACKAGE__->meta;
-        #$meta->add_attribute(
-        #    'legacy_model',
-        #    (   isa => 'Bio::Chado::Schema',
-        #        is  => 'rw'
-        #    )
-        #);
-        $self->legacy_model($legacy_schema);
-    }
+    #adding attribute at runtime
+    #my $meta = __PACKAGE__->meta;
+    #$meta->add_attribute(
+    #    'legacy_model',
+    #    (   isa => 'Bio::Chado::Schema',
+    #        is  => 'rw'
+    #    )
+    #);
+    #$self->legacy_model($legacy_schema);
+    #}
 }
 
-
-__PACKAGE__->meta->make_immutable(inline_constructor => 0);
-no Moose;
+__PACKAGE__->meta->make_immutable;
 
 1;

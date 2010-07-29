@@ -1,36 +1,25 @@
-package Resolver::Controller::Map;
+package Resolver::Controller::Input;
+
+use strict;
+
+use version; our $VERSION = qv('1.0.0');
 
 # Other modules:
-use Moose;
-use Moose::Util qw/apply_all_roles/;
-use namespace::autoclean;
-extends 'Mojolicious::Controller';
 
 # Module implementation
 #
 
-has 'context' => (
-	is => 'rw', 
-	isa => 'Mojolicious::Context', 
-);
-
-before 'map' => sub {
-	my ($self,  $c) = @_;
-	$self->context($c);
-};
-
-sub map {
+sub validate {
     my ( $self, $c ) = @_;
-    my $mapper_name = $c->stash('mapper_name');
-    my $role = 'Resolver::Role::'.$self->app->config->mapper->$mapper_name->module;
-    apply_all_roles($self, $role)
-    my $url = $self->map_to_url($c);
-    $self->app->log->debug("got url $url");
-    $c->res->code(301);
-    $c->res->headers->location($url);
-    return;
+    my $config = $self->app->config;
+    my $id     = $c->stash('id');
+    for my $name ( $config->all_mapper ) {
+        if ( $config->mapper->$name->match =~ /$id/ ) {
+            $c->stash( mapper_name => $name );
+            return 1;
+        }
+    }
 }
-
 
 1;    # Magic true value required at end of module
 
@@ -38,7 +27,7 @@ __END__
 
 =head1 NAME
 
-<MODULE NAME> - [One line description of module's purpose here]
+<Resolver::Controller::Input> - [Validates the id]
 
 
 =head1 VERSION

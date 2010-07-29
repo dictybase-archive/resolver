@@ -1,80 +1,117 @@
-package Resolver::Helper::Map;
+package Resolver::Role::YamlEater;
 
-use warnings;
 use strict;
 
-use version; our $VERSION = qv('1.0.0');
-
 # Other modules:
-use Data::Dumper;
-use Class::Trait 'base';
+use MooseX::Role::Parameterized;
+use namespace::autoclean;
 
 # Module implementation
 #
 
+parameter data => (
+    isa      => 'Any',
+    required => 1
+);
 
-sub map_table {
-    my $self = shift;
-    $self->{mapper} = {
-        gene        => $self->gene(@_),
-        mrna        => $self->transcript(@_),
-        trna        => $self->transcript(@_),
-        rrna        => $self->transcript(@_),
-        est         => $self->est(@_),
-        chromosome  => $self->assembly(@_),
-        polypeptide => $self->poly(@_)
-    };
-}
+role {
+    my $p   = shift;
+    my $str = $p->data;
+    for my $key ( keys %$str ) {
 
-sub check_map {
-    my ( $self, $type ) = @_;
-    if (defined $self->app->config->{resolve}->{$type}) {
-    	return 1;
+        #remove '::', '-' and convert upper to lowercase
+        my $attr = $key;
+        $attr =~ s{::}{_}g;
+        $attr =~ s{-}{_}g;
+        $attr =~ tr/A-Z/a-z/;
+
+        my $type = ref $str->{$key};
+        if ( !$type ) {
+            has $attr => (
+                is        => 'rw',
+                isa       => 'Str',
+                lazy      => 1,
+                predicate => 'has_' . $attr,
+                default   => $str->{$key}
+            );
+        }
+        elsif ( $type eq 'ARRAY' ) {
+            if ( !ref( $str->{$key}[0] ) ) {
+                has $attr => (
+                    is        => 'rw',
+                    isa       => 'ArrayRef',
+                    lazy      => 1,
+                    predicate => 'has_' . $attr,
+                    default   => sub {
+                        $str->{$key};
+                    },
+                    traits  => [qw/Array/],
+                    handles => {
+                        'get_' . $attr . '_value' => 'get',
+                        'get_all_' . $attr        => 'elements',
+                        $attr . '_entry'          => 'count',
+                    }
+                );
+
+                next;
+            }
+            has $attr => (
+                is        => 'rw',
+                isa       => 'ArrayRef[Resolver::Config::Yaml]',
+                lazy      => 1,
+                predicate => 'has_' . $attr,
+                default   => sub {
+                    [ map { Resolver::Config::Yaml->new->load($_) } @{ $str->{$key} } ];
+                },
+                traits  => [qw/Array/],
+                handles => {
+                    'get_' . $attr . '_value' => 'get',
+                    'get_all_' . $attr        => 'elements',
+                    $attr . '_entry'          => 'count',
+                }
+            );
+        }
+
+        else {
+            if ( scalar keys %{ $str->{$key} } > 0 ) {
+                has $attr => (
+                    is        => 'rw',
+                    isa       => 'Resolver::Config::Yaml',
+                    lazy      => 1,
+                    predicate => 'has_' . $attr,
+                    default   => sub {
+                        Resolver::Config::Yaml->new->load( $str->{$key} );
+                    },
+                );
+
+                has 'all_'
+                    . $attr => (
+                    is         => 'rw',
+                    isa        => 'ArrayRef',
+                    lazy       => 1,
+                    default    => sub { [ keys %{ $str->{$key} } ] },
+                    auto_deref => 1
+                    );
+            }
+            else {
+                has $attr => (
+                    is        => 'rw',
+                    isa       => 'HashRef',
+                    lazy      => 1,
+                    predicate => 'has_' . $attr,
+                    default   => sub { $str->{$key} },
+                    traits    => [qw/Hash/],
+                    handles   => {
+                        'get_' . $attr . '_value' => 'get',
+                        'get_all_' . $attr        => 'keys',
+                        'has_' . $attr . '_value' => 'defined',
+                        'get_' . $attr . '_pair'  => 'kv',
+                    }
+                );
+            }
+        }
     }
-}
-
-sub map_to_url {
-    my ($self,  $c) = @_;
-    my $id = $c->stash('id');
-    my $type = $c->stash('type');
-    $self->app->log->debug("got $id");
-    $self->$type($id);
-
-}
-
-sub gene {
-    my ( $self, $id ) = @_;
-    my $conf = $self->app->config;
-
-    $self->app->log->debug("got $id from gene");
-
-    ## The main place will it come from url
-    ## or will it come from config 
-    return $conf->{base}->{redirect} . '/gene/' . $id;
-}
-
-sub transcript {
-    my ( $self, $id ) = @_;
-    return;
-    my $feature = $self->stash('feature');
-    my $gene = $feature->search_related(
-        'feat_relationship_subject_ids',
-        { 'type.name' => 'part_of', },
-        { join        => 'type' }
-        )->search_related( 'object',  { 'type_2.name' => 'gene' },
-        { join => 'type',  'rows' => 1 } )->single;
-    my $gene_url = $self->gene($gene->uniquename);
-    return $gene_url.'/feature/'.$id;
-}
-
-sub est {
-}
-
-sub assembly {
-}
-
-sub poly {
-}
+};
 
 1;    # Magic true value required at end of module
 

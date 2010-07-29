@@ -1,36 +1,31 @@
-package Resolver::Controller::Map;
+package Resolver::Config::Yaml;
+
+use strict;
 
 # Other modules:
 use Moose;
 use Moose::Util qw/apply_all_roles/;
+use Moose::Util::TypeConstraints;
+use MooseX::Params::Validate;
+use YAML qw/LoadFile/;
 use namespace::autoclean;
-extends 'Mojolicious::Controller';
 
 # Module implementation
 #
+subtype
+    'YamlFile' => as 'Str',
+    => where   {/y(aml|ml)$/},
+    => message {"$_ not a yaml file"};
 
-has 'context' => (
-	is => 'rw', 
-	isa => 'Mojolicious::Context', 
-);
+coerce 'HashRef' => from 'YamlFile' => via { LoadFile($_) };
 
-before 'map' => sub {
-	my ($self,  $c) = @_;
-	$self->context($c);
-};
-
-sub map {
-    my ( $self, $c ) = @_;
-    my $mapper_name = $c->stash('mapper_name');
-    my $role = 'Resolver::Role::'.$self->app->config->mapper->$mapper_name->module;
-    apply_all_roles($self, $role)
-    my $url = $self->map_to_url($c);
-    $self->app->log->debug("got url $url");
-    $c->res->code(301);
-    $c->res->headers->location($url);
-    return;
+sub load {
+    my $self = shift;
+    my ($str)
+        = pos_validated_list( \@_,
+        { isa => 'HashRef|ArrayRef', coerce => 1 } );
+    apply_all_roles( $self, Resolver::Role::YamlEater => { data => $str } );
 }
-
 
 1;    # Magic true value required at end of module
 

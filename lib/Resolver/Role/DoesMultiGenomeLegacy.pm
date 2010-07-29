@@ -1,14 +1,14 @@
 package Resolver::Role::DoesMultiGenomeLegacy;
 
-use warnings;
 use strict;
-
 use version; our $VERSION = qv('1.0.0');
 
 # Other modules:
 use List::MoreUtils qw/any/;
 use Moose::Role;
 use MooseX::Aliases;
+use Bio::Chado::Schema;
+use namespace::autoclean;
 
 # Module implementation
 
@@ -19,21 +19,30 @@ has 'is_legacy' => (
     default => 0,
     handles => {
         legacy        => 'set',
-        unset_legacy    => 'unset',
+        unset_legacy  => 'unset',
         toggle_legacy => 'toggle',
-        not_legacy     => 'not'
+        not_legacy    => 'not'
     },
 );
 
-
-
-sub validate {
+sub revalidate {
     my ( $self, $c ) = @_;
-    my $app = $self->app;
-    my $id  = $c->stash('id');
+    my $app         = $self->app;
+    my $id          = $c->stash('id');
+    my $mapper_name = $c->stash('mapper_name');
     my $model;
     if ( $self->check_legacy_id($id) ) {
-        $model = $self->app->legacy_model;
+        if ( !$app->has_legacy_model ) {
+            my $legacy_conf = $app->mapper->$mapper_name->option->database;
+            $model = Bio::Chado::Schema->connect(
+                $legacy_conf->dsn, $legacy_conf->user,
+                $legacy_conf->pass, { $legacy_conf->opt => 1 }
+            );
+            $app->legacy_model($model);
+        }
+        else {
+            $model = $app->legacy_model;
+        }
     }
     else {
         $model = $app->model;
@@ -60,7 +69,7 @@ sub validate {
 
     my $type = $query_row->type->name;
     $self->app->log->debug("got type $type");
-    if ( !$self->check_map($type) ) {
+    if ( !$self->check_map( $type, $mapper_name ) ) {
         $c->res->code(404);
         $self->render(
             text => "Sorry cannot resolve " . $type . ' and ' . $id );
@@ -72,7 +81,7 @@ sub validate {
     $c->stash(
         run_type => $self->is_legacy ? 'legacy_' . lc $type : lc $type );
     $c->stash( feature => $query_row );
-    $c->stash(species => $query_row->organism->species);
+    $c->stash( species => $query_row->organism->species );
     return 1;
 }
 
@@ -85,30 +94,34 @@ sub check_legacy_id {
 }
 
 sub check_map {
-    my ( $self, $type ) = @_;
-    my $conf = $self->app->config;
-    any {$type} @{ $conf->{resolve}->{types} };
+    my ( $self, $type, $mapper_name ) = @_;
+    my $resolve = $self->app->config->mapper->$mapper_name->resolve;
+    any {$type} $resolve->get_all_types;
 }
 
 sub map_to_url {
     my ( $self, $c ) = @_;
+    $self->revalidate;
+
     my $id       = $self->context->stash('id');
     my $type     = $self->context->stash('type');
     my $run_type = $self->context->stash('run_type');
     my $base_url = $self->context->req->url->host;
+
+    my $config      = $self->app->config;
+    my $mapper_name = $c->stash('mapper_name');
+    my $mapper      = $config->mapper->$mapper_name;
 
     $base_url = $base_url ? 'http://' . $base_url . '/' : '/';
 
     $self->app->log->debug("got $id");
     $self->app->log->debug("got base $base_url");
     $self->app->log->debug("got run type $run_type");
-    my $path = $self->$run_type($id);
-
-    my $config = $self->app->config;
+    my $path = $self->$run_type( $id, $mapper_name );
 
     #global prepend defined
-    if ( defined $config->{resolve}->{prepend} ) {
-        if ( not defined $config->{resolve}->{type}->{$type}->{nospecies} ) {
+    if ( $mapper->meta->has_attribute('prepend') ) {
+        if ( !$mapper->$type->meta->has_attribute('nospecies') ) {
             $path = $self->prepend . '/' . $path;
         }
 
@@ -118,33 +131,33 @@ sub map_to_url {
 
 #this is kind of this role specific; kind of hard coded
 sub prepend {
-    my $self    = shift;
+    my $self = shift;
     return $self->context->stash('species');
 }
 
 sub gene {
-    my ( $self, $id ) = @_;
+    my ( $self, $id,  $mapper_name ) = @_;
     $self->app->log->debug("got $id from gene");
-    my $conf = $self->app->config;
+    my $mapper = $self->app->config->mapper->$mapper_name;
     my $type = 'gene';
     my $prepend
-        = $conf->{resolve}->{type}->{$type}->{prefix}
-        ? $conf->{resolve}->{type}->{$type}->{prefix}
+        = $mapper->type->$type->meta->has_attribute('prefix')
+        ? $mapper->type->$type->prefix
         : $type;
     return $prepend . '/' . $id;
 }
 
 sub transcript {
-    my ( $self, $id ) = @_;
-    my $conf = $self->app->config;
+    my ( $self, $id, $mapper_name ) = @_;
+    my $mapper = $self->app->config->mapper->$mapper_name;
     my $type = $self->context->stash('type');
-    my $prepend
-        = $conf->{resolve}->{type}->{$type}->{prefix}
-        ? $conf->{resolve}->{type}->{$type}->{prefix}
+	my $prepend
+        = $mapper->type->$type->meta->has_attribute('prefix')
+        ? $mapper->type->$type->prefix
         : $type;
     my $feature = $self->context->stash('feature');
     my $gene    = $feature->search_related(
-        'feat_relationship_subject_ids',
+        'feat_relationship_subjects',
         { 'type.name' => 'part_of', },
         { join        => 'type' }
         )->search_related(
@@ -157,39 +170,33 @@ sub transcript {
 }
 
 sub legacy_est {
-    my ( $self, $id ) = @_;
-    my $type   = $self->context->stash('type');
+    my ( $self, $id , $mapper_name) = @_;
+    my $type    = $self->context->stash('type');
     my $species = $self->context->stash('species');
-    return $species.'/db/cgi-bin/feature_page.pl?primary_id=' . $id;
+    return $species . '/db/cgi-bin/feature_page.pl?primary_id=' . $id;
 }
 
 sub est {
     my ( $self, $id ) = @_;
-    my $type   = $self->context->stash('type');
+    my $type = $self->context->stash('type');
     return 'db/cgi-bin/feature_page.pl?primary_id=' . $id;
-
-    #return $config->{resolve}->{type}->{$type}->{prefix}
-    #    . '/db/cgi-bin?feature_pl?primary_id='
-    #    . $id
-    #    if defined $config->{resolve}->{type}->{$type}->{prefix};
 }
 
 sub polypeptide {
 }
 
-alias rrna => 'transcript'; 
-alias trna => 'transcript';
-alias mrna => 'transcript';
-alias legacy_gene => 'gene';
-alias legacy_rrna => 'transcript';
-alias legacy_mrna => 'transcript';
-alias legacy_trna => 'transcript';
-alias chromosome => 'est';
-alias contig => 'est';
-alias supercontig => 'est';
+alias rrna              => 'transcript';
+alias trna              => 'transcript';
+alias mrna              => 'transcript';
+alias legacy_gene       => 'gene';
+alias legacy_rrna       => 'transcript';
+alias legacy_mrna       => 'transcript';
+alias legacy_trna       => 'transcript';
+alias chromosome        => 'est';
+alias contig            => 'est';
+alias supercontig       => 'est';
 alias legacy_chromosome => 'legacy_est';
-alias legacy_contig => 'legacy_est';
-
+alias legacy_contig     => 'legacy_est';
 
 #
 no Moose::Role;
