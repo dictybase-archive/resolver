@@ -63,4 +63,10 @@ resolve:
    prefix: feature
   trna:
    prefix: feature
-
+ external:
+  match: '^\d+$'
+  module: DoesExternal
+  option:
+   url: 
+    base: 'http://sacgb.fli-leibniz.de/cgi/annsheet.pl?gid='
+    part: '&ssi=free'

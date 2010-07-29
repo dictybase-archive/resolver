@@ -14,13 +14,14 @@ use_ok('Resolver');
 my $client = Mojo::Client->new;
 
 #gene id
-my $tx = Mojo::Transaction->new_get('/id/0051088');
+my $id = '33102';
+my $tx = Mojo::Transaction->new_get( '/id/' . $id );
 
 # Process request
 $client->process_app( 'Resolver', $tx );
 
 # Test response
 is( $tx->res->code, 301, 'got redirection for external id' );
+like( $tx->res->headers->location, qr/$id/, 'has id in the url' );
 like( $tx->res->headers->location,
-    qr/gernot/,
-    'has gernot as external link provider' );
+    qr/leibniz/, 'has institute signature in the url' );
