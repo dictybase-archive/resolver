@@ -1,14 +1,19 @@
 database:
-  dsn: "dbi:Oracle:host=host;sid=host"
-  user: user
-  pass: user
+  dsn: "dbi:Oracle:host=192.168.60.10;sid=dictybase"
+  user: DPUR_CHADO
+  pass: DPUR_CHADO
   opt:  LongTruncOk 
+
+cache:
+ driver: 'Memcached::Fast'
+ servers: '127.0.0.1:11211'
+ namespace: resolver
 
 #which module to load at runtime which does the url mapping
 #currently a Moose role
 #namesapce is optional otherwise Resolver::Map will be assumed
 #module specific option could be given under option. At this point there are two
-#that exist for DoesMultiGenomeLegacy roles,  alias for adding alias methods and
+#options that exist for DoesMultiGenomeLegacy roles,  alias for adding alias methods and
 #addition database connection that will be used for fetching data from legacy database
 #The legacy database is assumed to hold only one species and currently for all ids
 #residing in that database the species name is prepended. This implementation might change
@@ -17,52 +22,50 @@ database:
 #
 #It also applies this Moose role to all the controllers,  need to refactor that part
 #later.
-module: 
-  #namespace:
-  name: DoesMultiGenomeLegacy
+#
+mapper:
+ dictybase:
+  match: '^D[A-Z]{2}\S+$'
+  module: DoesMultiGenomeLegacy
   option:
      alias: 1
      database:
-         dsn: "dbi:Oracle:host=host;sid=sid"
-         user: user
-         pass: user
+         dsn: "dbi:Oracle:host=192.168.60.10;sid=dictybase"
+         user: CGM_CHADO
+         pass: CGM_CHADO
          opt : LongTruncOk
-
-
-
-
-#Any specific type for SO type 
-#prepend species name is global
-#direct overrides that
-resolve:
- types: 
+    #Any specific type for SO type 
+  resolve:
+   types: 
     - gene
     - polypeptide
     - est
     - chromosome
+    - supercontig
     - mrna
     - rrna
     - trna
-    - supercontig
- prepend: species
- type:
-  est:
-   noprefix: 1
-   nospecies: 1
-  chromosome:
-   noprefix: 1
-   nospecies: 1
-  supercontig:
-   noprefix: 1
-   nospecies: 1
-  polypeptide:
-   prefix: protein
-  mrna:
-   prefix: feature
-  rrna:
-   prefix: feature
-  trna:
-   prefix: feature
+  #prepend species name is global
+  #direct overrides that
+  prepend: species
+  type:
+   est:
+    noprefix: 1
+    nospecies: 1
+   supercontig:
+    noprefix: 1
+    nospecies: 1
+   chromosome:
+    noprefix: 1
+    nospecies: 1
+   polypeptide:
+    prefix: protein
+   mrna:
+    prefix: feature
+   rrna:
+    prefix: feature
+   trna:
+    prefix: feature
  external:
   match: '^\d+$'
   module: DoesExternal
