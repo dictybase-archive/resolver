@@ -15,7 +15,9 @@ my $builder = Module::Build->new(
         'YAML' => '', 
         'Moose' => '1.09', 
         'Bio::Chado::Schema' => '0.05703', 
-        'MooseX::Role::Parameterized' => '0.19'
+        'MooseX::Role::Parameterized' => '0.19', 
+        'CHI' => '0.36', 
+        'Cache::Memcached::Fast' => '0.19'
     },
     build_requires => {
     	 'Archive::Extract' => '',

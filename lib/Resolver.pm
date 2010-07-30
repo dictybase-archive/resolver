@@ -7,6 +7,7 @@ use Moose;
 use Resolver::Config::Yaml;
 use namespace::autoclean;
 use Carp::Always;
+use CHI;
 extends 'Mojolicious';
 
 has 'config' => (
@@ -37,6 +38,23 @@ has 'legacy_model' => (
     is        => 'rw',
     predicate => 'has_legacy_model'
 );
+
+has 'cache' => (
+	is => 'rw', 
+	isa => 'Object', 
+	lazy_build => 1
+);
+
+sub _build_cache {
+	my $self = shift;
+	my $config = $self->config;
+	CHI->new(
+		driver => $config->cache->driver, 
+		servers => [ $config->cache->servers], 
+		namespace => $config->cache->namespace, 
+		expires_in => '6 days'
+	);
+}
 
 # This method will run once at server start
 sub startup {

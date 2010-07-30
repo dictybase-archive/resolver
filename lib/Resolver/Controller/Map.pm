@@ -11,24 +11,38 @@ extends 'Mojolicious::Controller';
 #
 
 has 'context' => (
-	is => 'rw', 
-	isa => 'Mojolicious::Context', 
+    is  => 'rw',
+    isa => 'Mojolicious::Context',
 );
 
 before 'resolve' => sub {
-	my ($self,  $c) = @_;
-	$self->context($c);
+    my ( $self, $c ) = @_;
+    $self->context($c);
 };
 
 sub resolve {
     my ( $self, $c ) = @_;
-    my $mapper_name = $c->stash('mapper_name');
-    my $role = 'Resolver::Role::'.$self->app->config->mapper->$mapper_name->module;
-    $self->app->log->debug("role name $role");
-    apply_all_roles($self, $role);
-    $self->app->log->debug("applied $role");
-    my $url = $self->map_to_url($c);
-    $self->app->log->debug("got url $url");
+    my $cache = $self->app->cache;
+    my $id    = $c->stash('id');
+
+    my $url;
+    #try to get from cache
+    if ( $cache->is_valid($id) ) {
+        $url = $cache->get($id);
+        $self->app->log->debug("got $url from cache");
+    }
+    else {
+        my $mapper_name = $c->stash('mapper_name');
+        my $role        = 'Resolver::Role::'
+            . $self->app->config->mapper->$mapper_name->module;
+        apply_all_roles( $self, $role );
+
+        $self->app->log->debug("applied $role");
+        $url = $self->map_to_url($c);
+    	$self->app->log->debug("got url $url from db");
+        $cache->set( $id, $url );
+    }
+
     $c->res->code(301);
     $c->res->headers->location($url);
     return;
