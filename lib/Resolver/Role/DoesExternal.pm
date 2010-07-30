@@ -11,7 +11,8 @@ sub map_to_url {
    my ( $self, $c ) = @_;
    my $id       = $self->context->stash('id');
    my $mapper_name = $c->stash('mapper_name');
-   my $url = $self->app->config->mapper->$mapper_name->option->linkout.'/'.$id;
+   my $path = $self->app->config->mapper->$mapper_name->option->url;
+   my $url = $path->base.$id.$path->part;
    return $url;
 }
 
