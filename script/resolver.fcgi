@@ -11,6 +11,7 @@ use lib "$FindBin::Bin/../../lib";
 
 BEGIN {
 	$ENV{MOJO_MODE} = 'production';
+	$ENV{MOJO_DEBUG} = 'error';
 };
 
 my $fcgi = Mojo::Server::FCGI->new(app_class => 'Resolver'); 
