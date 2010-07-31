@@ -24,6 +24,18 @@ is( $tx->res->code, 301, 'got redirection for gene id' );
 like( $tx->res->headers->location,
     qr/purpureum/,
     'has purpureum as species in the redirected header of gene' );
+
+$tx = Mojo::Transaction->new_get('/id/DPU_G0069236');
+
+# Process request
+$client->process_app( 'Resolver', $tx );
+
+# Test response
+is( $tx->res->code, 301, 'got redirection for gene id' );
+like( $tx->res->headers->location,
+    qr/purpureum/,
+    'has purpureum as species in the redirected header of gene' );
+
 #for transcript
 $tx = Mojo::Transaction->new_get('/id/DPU0051089');
 

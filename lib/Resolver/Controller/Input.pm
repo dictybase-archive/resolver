@@ -2,19 +2,16 @@ package Resolver::Controller::Input;
 
 use strict;
 
-use version; our $VERSION = qv('1.0.0');
-
 # Other modules:
-use Moose;
 use Carp::Always;
-use namespace::autoclean;
-extends 'Mojolicious::Controller';
+use base qw/Mojolicious::Controller/;
 
 # Module implementation
 #
 
 sub validate {
     my ( $self, $c ) = @_;
+    $self->app->log->debug("just before config");
     my $config = $self->app->config;
     my $id     = $c->stash('id');
     for my $name ( $config->all_mapper ) {

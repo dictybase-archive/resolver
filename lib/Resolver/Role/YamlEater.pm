@@ -3,6 +3,7 @@ package Resolver::Role::YamlEater;
 use strict;
 
 # Other modules:
+use Carp::Always;
 use MooseX::Role::Parameterized;
 use namespace::autoclean;
 

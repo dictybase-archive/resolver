@@ -8,6 +8,7 @@ use List::MoreUtils qw/any/;
 use Moose::Role;
 use MooseX::Aliases;
 use Bio::Chado::Schema;
+use Carp::Always;
 use namespace::autoclean;
 
 # Module implementation

@@ -8,6 +8,7 @@ use Moose::Util qw/apply_all_roles/;
 use Moose::Util::TypeConstraints;
 use MooseX::Params::Validate;
 use YAML qw/LoadFile/;
+use Carp::Always;
 use namespace::autoclean;
 
 # Module implementation
