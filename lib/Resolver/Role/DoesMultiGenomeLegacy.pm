@@ -137,7 +137,7 @@ sub map_to_url {
     #global prepend defined
     if ( $mapper->meta->has_attribute('prepend') ) {
         if ( !$mapper->type->meta->has_attribute($type) ) {
-            $path = $self->prepend($c) . '/' . $path;
+            $path = $self->prepend . '/' . $path;
         }
         elsif (!$mapper->type->$type->meta->has_attribute('nospecies') ) {
             $path = $self->prepend . '/' . $path;

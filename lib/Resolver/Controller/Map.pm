@@ -14,7 +14,8 @@ sub resolve {
     if ( !$self->validate ) {
         $self->app->log->debug("matches false");
         $self->res->code(404);
-        $self->render( text => "Given id $id cannot be mapped" );
+        $self->render(
+            text => "Given id " . $self->stash('id') . " cannot be mapped" );
         return;
     }
 
