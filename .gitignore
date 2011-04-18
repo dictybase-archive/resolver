@@ -1,8 +1,10 @@
 #Ignore conf files
+*.conf
 *.yaml*
 
 #however exclude the sample conf
 !*.sample*
+!fcgi_conf.yaml
 
 #exclude various folder
 log
