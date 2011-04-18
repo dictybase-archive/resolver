@@ -6,9 +6,6 @@ use File::Spec::Functions;
 use Moose;
 use Resolver::Config::Yaml;
 use namespace::autoclean;
-use Carp::Always;
-use CHI;
-use Carp::Always;
 extends 'Mojolicious';
 
 has 'config' => (
@@ -68,15 +65,6 @@ sub startup {
 
     # -- init config
     my $config = $self->config;
-
-    # -- add cache plugin
-    if ( $config->has_cache ) {
-        my $options;
-        for my $key ( $config->all_cache ) {
-            $options->{$key} = $config->cache->$key;
-        }
-        $self->plugin( 'cache-action', { options => $options } );
-    }
 
     # Routes
     my $r = $self->routes;
