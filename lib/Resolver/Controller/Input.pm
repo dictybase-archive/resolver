@@ -10,24 +10,20 @@ use base qw/Mojolicious::Controller/;
 #
 
 sub validate {
-    my ( $self, $c ) = @_;
+    my ($self) = @_;
     $self->app->log->debug("just before config");
     my $config = $self->app->config;
-    my $id     = $c->stash('id');
+    my $id     = $self->stash('id');
     for my $name ( $config->all_mapper ) {
-    	my $regexp = $config->mapper->$name->match;
+        my $regexp = $config->mapper->$name->match;
         $self->app->log->debug("got regexp $regexp");
         if ( $id =~ /$regexp/ ) {
-            $c->stash( mapper_name => $name );
+            $self->stash( mapper_name => $name );
             $self->app->log->debug("mapper $name");
             $self->app->log->debug("matches true");
             return 1;
         }
     }
-    $self->app->log->debug("matches false");
-    $c->res->code(404);
-    $self->render(text => "Given id $id cannot be mapped");
-    return 0;
 }
 
 1;    # Magic true value required at end of module

@@ -62,45 +62,31 @@ has 'legacy_model' => (
     predicate => 'has_legacy_model'
 );
 
-has 'cache' => (
-    is         => 'rw',
-    isa        => 'Object',
-    lazy_build => 1
-);
-
-sub _build_cache {
-    my $self   = shift;
-    my $config = $self->config;
-    CHI->new(
-        driver     => $config->cache->driver,
-        servers    => [ $config->cache->servers ],
-        namespace  => $config->cache->namespace,
-        expires_in => '6 days'
-    );
-}
-
 # This method will run once at server start
 sub startup {
     my $self = shift;
 
-    #default log level
-    $self->log->level( $ENV{MOJO_DEBUG} ? $ENV{MOJO_DEBUG} : 'debug' );
-    #$self->connect_to_db;
+    # -- init config
+    my $config = $self->config;
+
+    # -- add cache plugin
+    if ( $config->has_cache ) {
+        my $options;
+        for my $key ( $config->all_cache ) {
+            $options->{$key} = $config->cache->$key;
+        }
+        $self->plugin( 'cache-action', { options => $options } );
+    }
 
     # Routes
     my $r = $self->routes;
     $r->namespace('Resolver::Controller');
 
-    my $bridge = $r->bridge->to(
-        controller => 'input',
-        action     => 'validate'
-    );
-    $bridge->route('/id/:id')->to(
+    $r->route('/id/:id')->to(
         controller => 'map',
         action     => 'resolve'
     );
 
 }
-
 
 1;

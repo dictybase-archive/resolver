@@ -1,14 +1,10 @@
 package Resolver::Role::DoesMultiGenomeLegacy;
 
-use strict;
-use version; our $VERSION = qv('1.0.0');
-
 # Other modules:
 use List::MoreUtils qw/any/;
 use Moose::Role;
 use MooseX::Aliases;
 use Bio::Chado::Schema;
-use Carp::Always;
 use namespace::autoclean;
 
 # Module implementation
@@ -27,10 +23,10 @@ has 'is_legacy' => (
 );
 
 sub revalidate {
-    my ( $self, $c ) = @_;
+    my ( $self) = @_;
     my $app         = $self->app;
-    my $id          = $c->stash('id');
-    my $mapper_name = $c->stash('mapper_name');
+    my $id          = $self->stash('id');
+    my $mapper_name = $self->stash('mapper_name');
     my $model;
     if ( $self->check_legacy_id($id) ) {
         if ( !$app->has_legacy_model ) {
@@ -62,6 +58,7 @@ sub revalidate {
     else {
         $model = $app->model;
     }
+
     my $query_row = $model->resultset('Sequence::Feature')->find(
         {   'is_deleted'       => 0,
             'dbxref.accession' => $id,
@@ -77,7 +74,7 @@ sub revalidate {
     );
 
     if ( !$query_row ) {
-        $c->res->code(404);
+        $self->res->code(404);
         $self->render( text => "Given id $id not found" );
         return;
     }
@@ -85,21 +82,21 @@ sub revalidate {
     my $type = $query_row->type->name;
     $self->app->log->debug("got type $type");
     if ( !$self->check_map( $type, $mapper_name ) ) {
-        $c->res->code(404);
+        $self->res->code(404);
         $self->render(
             text => "Sorry cannot resolve " . $type . ' and ' . $id );
         return;
     }
     $self->app->log->debug("It can map $type");
 
-    $c->stash( type => lc $type );
-    $c->stash(
+    $self->stash( type => lc $type );
+    $self->stash(
         run_type => $self->is_legacy
         ? 'legacy_' . lc $type
         : lc $type
     );
-    $c->stash( feature => $query_row );
-    $c->stash( species => $query_row->organism->species );
+    $self->stash( feature => $query_row );
+    $self->stash( species => $query_row->organism->species );
     return 1;
 }
 
@@ -118,16 +115,16 @@ sub check_map {
 }
 
 sub map_to_url {
-    my ( $self, $c ) = @_;
-    $self->revalidate($c);
+    my ( $self) = @_;
+    $self->revalidate;
 
-    my $id       = $self->context->stash('id');
-    my $type     = $self->context->stash('type');
-    my $run_type = $self->context->stash('run_type');
-    my $base_url = $self->context->req->url->host;
+    my $id       = $self->stash('id');
+    my $type     = $self->stash('type');
+    my $run_type = $self->stash('run_type');
+    my $base_url = $self->req->url->host;
 
     my $config      = $self->app->config;
-    my $mapper_name = $c->stash('mapper_name');
+    my $mapper_name = $self->stash('mapper_name');
     my $mapper      = $config->mapper->$mapper_name;
 
     $base_url = $base_url ? 'http://' . $base_url . '/' : '/';
@@ -143,7 +140,7 @@ sub map_to_url {
             $path = $self->prepend($c) . '/' . $path;
         }
         elsif (!$mapper->type->$type->meta->has_attribute('nospecies') ) {
-            $path = $self->prepend($c) . '/' . $path;
+            $path = $self->prepend . '/' . $path;
         }
     }
     return $base_url . $path;
@@ -151,8 +148,8 @@ sub map_to_url {
 
 #this is kind of this role specific; kind of hard coded
 sub prepend {
-    my ( $self, $c ) = @_;
-    return $c->stash('species');
+    my ( $self ) = @_;
+    return $self->stash('species');
 }
 
 sub gene {
@@ -175,12 +172,12 @@ sub gene {
 sub transcript {
     my ( $self, $id, $mapper_name ) = @_;
     my $mapper = $self->app->config->mapper->$mapper_name;
-    my $type   = $self->context->stash('type');
+    my $type   = $self->stash('type');
     my $prepend
         = $mapper->type->$type->meta->has_attribute('prefix')
         ? $mapper->type->$type->prefix
         : $type;
-    my $feature = $self->context->stash('feature');
+    my $feature = $self->stash('feature');
     my $gene    = $feature->search_related(
         'feature_relationship_subjects',
         { 'type.name' => 'part_of', },
@@ -196,14 +193,14 @@ sub transcript {
 
 sub legacy_est {
     my ( $self, $id, $mapper_name ) = @_;
-    my $type    = $self->context->stash('type');
-    my $species = $self->context->stash('species');
+    my $type    = $self->stash('type');
+    my $species = $self->stash('species');
     return $species . '/db/cgi-bin/feature_page.pl?primary_id=' . $id;
 }
 
 sub est {
     my ( $self, $id ) = @_;
-    my $type = $self->context->stash('type');
+    my $type = $self->stash('type');
     return 'db/cgi-bin/feature_page.pl?primary_id=' . $id;
 }
 
@@ -224,7 +221,6 @@ alias legacy_chromosome => 'legacy_est';
 alias legacy_contig     => 'legacy_est';
 
 #
-no Moose::Role;
 
 1;    # Magic true value required at end of module
 
