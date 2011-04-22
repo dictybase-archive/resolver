@@ -10,20 +10,18 @@ my $builder = Module::Build->new(
     dist_abstract => 'Module for resolving Ids',
     dist_version  => '0.1',
     requires      => {
-        'Mojolicious'                 => '0.999938',
-        'Moose'                       => '1.21',
-        'Bio::Chado::Schema'          => '0.058',
-        'MooseX::Role::Parameterized' => '0.23',
-        'CHI'                         => '0.36',
-        'Cache::Memcached::Fast'      => '0.19',
-        'YAML::XS'                    => '0.32',
-        'Plack'                       => '0.9941',
+        'Mojolicious'                 => '1.21',
+        'Moose'                       => '2.00',
+        'Bio::Chado::Schema'          => '0.08100',
+        'MooseX::Role::Parameterized' => '0.26',
+        'YAML::XS'                    => '0.35',
+        'Plack'                       => '0.9976',
         'Module::Versions'            => '0.02',
-        'FCGI::Engine'                => '0.16',
-        'Mojolicious::Plugin::Bundle' => '0.001',
-        'Mojolicious::Plugin::Cache'  => '0.0011',
+        'FCGI::Engine'                => '0.18',
+        'MooseX::NonMoose'            => '0.20'
     },
-    add_to_cleanup => ['Resolver-*'],
+    recommends     => { 'DBD::Oracle' => '1.28'},
+    add_to_cleanup => [' Resolver- *'],
 );
 
 $builder->create_build_script();
