@@ -3,7 +3,6 @@ package Resolver::Controller::Input;
 use strict;
 
 # Other modules:
-use Carp::Always;
 use base qw/Mojolicious::Controller/;
 
 # Module implementation
