@@ -21,10 +21,9 @@ my $builder = Module::Build->new(
     },
     configure_requires => {
         'Module::Versions' => '0.02',
-        'Carp::Always'     => '0.09'
     },
     recommends     => { 'DBD::Oracle' => '1.27' },
-    add_to_cleanup => [' Resolver- *'],
+    add_to_cleanup => [' Resolver-*'],
 );
 
 $builder->create_build_script();
