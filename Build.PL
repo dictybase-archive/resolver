@@ -11,16 +11,16 @@ my $builder = Module::Build->new(
     dist_version  => '0.1',
     requires      => {
         'Mojolicious'                 => '1.21',
-        'Moose'                       => '2.00',
-        'Bio::Chado::Schema'          => '0.08100',
-        'MooseX::Role::Parameterized' => '0.26',
-        'YAML::XS'                    => '0.35',
-        'Plack'                       => '0.9976',
+        'Moose'                       => '1.21',
+        'Bio::Chado::Schema'          => '0.058',
+        'MooseX::Role::Parameterized' => '0.23',
+        'YAML::XS'                    => '0.34',
+        'Plack'                       => '0.9963',
         'Module::Versions'            => '0.02',
         'FCGI::Engine'                => '0.18',
-        'MooseX::NonMoose'            => '0.20'
+        'MooseX::NonMoose'            => '0.17'
     },
-    recommends     => { 'DBD::Oracle' => '1.28'},
+    recommends     => { 'DBD::Oracle' => '1.27'},
     add_to_cleanup => [' Resolver- *'],
 );
 
