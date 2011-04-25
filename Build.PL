@@ -8,7 +8,7 @@ my $builder = Module::Build->new(
     license       => 'perl',
     dist_author   => 'Siddhartha Basu <siddhartha-basu@northwestern.edu>',
     dist_abstract => 'Module for resolving Ids',
-    dist_version  => '0.1',
+    dist_version  => '0.2',
     requires      => {
         'Mojolicious'                 => '1.21',
         'Moose'                       => '1.21',
@@ -16,11 +16,14 @@ my $builder = Module::Build->new(
         'MooseX::Role::Parameterized' => '0.23',
         'YAML::XS'                    => '0.34',
         'Plack'                       => '0.9963',
-        'Module::Versions'            => '0.02',
         'FCGI::Engine'                => '0.18',
         'MooseX::NonMoose'            => '0.17'
     },
-    recommends     => { 'DBD::Oracle' => '1.27'},
+    configure_requires => {
+        'Module::Versions' => '0.02',
+        'Carp::Always'     => '0.09'
+    },
+    recommends     => { 'DBD::Oracle' => '1.27' },
     add_to_cleanup => [' Resolver- *'],
 );
 
