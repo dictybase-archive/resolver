@@ -68,7 +68,7 @@ sub revalidate {
             select   => [
                 'feature_id',           'type_id',
                 'organism_id',          'organism.species',
-                'organism.organism_id', 'organism.genus'
+                'organism.organism_id', 'organism.genus',  'organism.common_name'
             ],
         }
     );
@@ -97,6 +97,7 @@ sub revalidate {
     );
     $self->stash( feature => $query_row );
     $self->stash( species => $query_row->organism->species );
+    $self->stash( common_name => $query_row->organism->common_name );
     return 1;
 }
 
@@ -149,7 +150,7 @@ sub map_to_url {
 #this is kind of this role specific; kind of hard coded
 sub prepend {
     my ( $self ) = @_;
-    return $self->stash('species');
+    return $self->stash('common_name');
 }
 
 sub gene {

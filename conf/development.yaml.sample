@@ -25,7 +25,7 @@ cache:
 #
 mapper:
  dictybase:
-  match: '^D[A-Z]{2}\S+$'
+  match: '^[A-Z]{3}\S+$'
   module: DoesMultiGenomeLegacy
   option:
      alias: 1
