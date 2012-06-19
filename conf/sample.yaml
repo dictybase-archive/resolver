@@ -1,0 +1,64 @@
+database:
+  dsn: dsn
+  user: user
+  pass: pass
+  opt:  opt
+
+
+#which module to load at runtime which does the url mapping
+#currently a Moose role
+#namesapce is optional otherwise Resolver::Map will be assumed
+#module specific option could be given under option. At this point there are two
+#options that exist for DoesMultiGenomeLegacy roles,  alias for adding alias methods and
+#addition database connection that will be used for fetching data from legacy database
+#The legacy database is assumed to hold only one species and currently for all ids
+#residing in that database the species name is prepended. This implementation might change
+#once we have a standardized canonical url for chromosome, EST and any other top level
+#sequences types.
+#
+#It also applies this Moose role to all the controllers,  need to refactor that part
+#later.
+#
+mapper:
+ dictybase:
+  match: '^[A-Z]{2}\S+$'
+  module: DoesMultiGenomeLegacy
+  option:
+     alias: 1
+     database:
+         dsn: dsn
+         user: user
+         pass: pass
+         opt : opt
+    #Any specific type for SO type 
+  resolve:
+   types: 
+    - gene
+    - polypeptide
+    - est
+    - chromosome
+    - supercontig
+    - mrna
+    - rrna
+    - trna
+  #prepend species name is global
+  #direct overrides that
+  prepend: species
+  type:
+   est:
+    noprefix: 1
+    nospecies: 1
+   supercontig:
+    noprefix: 1
+    nospecies: 1
+   chromosome:
+    noprefix: 1
+    nospecies: 1
+   polypeptide:
+    prefix: protein
+   mrna:
+    prefix: feature
+   rrna:
+    prefix: feature
+   trna:
+    prefix: feature
