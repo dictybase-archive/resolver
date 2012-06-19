@@ -14,9 +14,6 @@ my $builder = Module::Build->new(
         'Moose'                       => '1.21',
         'Bio::Chado::Schema'          => '0.058',
         'MooseX::Role::Parameterized' => '0.23',
-        'YAML::XS'                    => '0.34',
-        'Plack'                       => '0.9963',
-        'FCGI::Engine'                => '0.18',
         'MooseX::NonMoose'            => '0.17'
     },
     configure_requires => {
