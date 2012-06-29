@@ -24,6 +24,6 @@ META
 #exclude Build.PL
 !Build.PL
 
-Rexfile
+Rexfile*
 .carton/
 local/
