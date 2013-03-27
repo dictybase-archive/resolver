@@ -23,14 +23,15 @@ has 'is_legacy' => (
 );
 
 sub revalidate {
-    my ( $self) = @_;
+    my ($self)      = @_;
     my $app         = $self->app;
     my $id          = $self->stash('id');
     my $mapper_name = $self->stash('mapper_name');
     my $model;
     if ( $self->check_legacy_id($id) ) {
         if ( !$app->has_legacy_model ) {
-            my $legacy_conf = $app->config->mapper->$mapper_name->option->database;
+            my $legacy_conf
+                = $app->config->mapper->$mapper_name->option->database;
             my $opt
                 = $legacy_conf->meta->has_attribute('opt')
                 ? $legacy_conf->opt
@@ -68,7 +69,8 @@ sub revalidate {
             select   => [
                 'feature_id',           'type_id',
                 'organism_id',          'organism.species',
-                'organism.organism_id', 'organism.genus',  'organism.common_name'
+                'organism.organism_id', 'organism.genus',
+                'organism.common_name'
             ],
         }
     );
@@ -95,8 +97,8 @@ sub revalidate {
         ? 'legacy_' . lc $type
         : lc $type
     );
-    $self->stash( feature => $query_row );
-    $self->stash( species => $query_row->organism->species );
+    $self->stash( feature     => $query_row );
+    $self->stash( species     => $query_row->organism->species );
     $self->stash( common_name => $query_row->organism->common_name );
     return 1;
 }
@@ -116,7 +118,7 @@ sub check_map {
 }
 
 sub map_to_url {
-    my ( $self) = @_;
+    my ($self) = @_;
     $self->revalidate;
 
     my $id       = $self->stash('id');
@@ -140,7 +142,7 @@ sub map_to_url {
         if ( !$mapper->type->meta->has_attribute($type) ) {
             $path = $self->prepend . '/' . $path;
         }
-        elsif (!$mapper->type->$type->meta->has_attribute('nospecies') ) {
+        elsif ( !$mapper->type->$type->meta->has_attribute('nospecies') ) {
             $path = $self->prepend . '/' . $path;
         }
     }
@@ -149,7 +151,7 @@ sub map_to_url {
 
 #this is kind of this role specific; kind of hard coded
 sub prepend {
-    my ( $self ) = @_;
+    my ($self) = @_;
     return $self->stash('common_name');
 }
 
@@ -202,10 +204,37 @@ sub legacy_est {
 sub est {
     my ( $self, $id ) = @_;
     my $type = $self->stash('type');
-    return 'db/cgi-bin/feature_page.pl?primary_id=' . $id;
+    return $self->prepend."/$type/$id";
 }
 
 sub polypeptide {
+    my ( $self, $id, $mapper_name ) = @_;
+    my $feature = $self->stash('feature');
+    my $rs = $feature->search_related(
+        'feature_relationship_subjects',
+        { 'type.name' => 'derives_from', },
+        { join        => 'type' }
+        )->search_related(
+        'object',
+        { 'type_2.name' => 'mRNA' },
+        { join          => 'type'}
+        )->search_related(
+        'feature_relationship_subjects',
+        { 'type_3.name' => 'part_of', },
+        { join        => 'type' }
+        )->search_related(
+        'object',
+        { 'type_4.name' => 'gene' },
+        { join          => 'type'});
+	my $gene_id = $rs->first->dbxref->accession;
+    my $type   = $self->stash('type');
+    my $mapper = $self->app->config->mapper->$mapper_name;
+    my $prepend
+        = $mapper->type->$type->meta->has_attribute('prefix')
+        ? $mapper->type->$type->prefix
+        : $type;
+    my $gene_url = $self->gene( $gene_id, $mapper_name );
+    return $gene_url . '/' . $prepend . '/' . $id;
 }
 
 alias rrna              => 'transcript';

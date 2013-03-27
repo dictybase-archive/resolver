@@ -14,16 +14,18 @@ my $builder = Module::Build->new(
         'Moose'                       => '1.21',
         'Bio::Chado::Schema'          => '0.058',
         'MooseX::Role::Parameterized' => '0.23',
-        'YAML::XS'                    => '0.34',
-        'Plack'                       => '0.9963',
-        'FCGI::Engine'                => '0.18',
-        'MooseX::NonMoose'            => '0.17'
+        'MooseX::NonMoose'            => '0.17',
+        'MooseX::Params::Validate'    => '0.16',
+        'Math::BigInt'                => '1.99',
+        'Math::Base36'                => '0.09',
+        'DBI'                         => '1.51',
+        'DBD::Oracle'                 => '1.27',
+        'namespace::autoclean'        => '0.13',
+        'MooseX::Aliases'             => '0.10'
     },
-    configure_requires => {
-        'Module::Versions' => '0.02',
-    },
-    recommends     => { 'DBD::Oracle' => '1.27' },
-    add_to_cleanup => [' Resolver-*'],
+    configure_requires => { 'Module::Versions' => '0.02', },
+    recommends         => { 'DBD::Oracle'      => '1.27' },
+    add_to_cleanup     => [' Resolver-*'],
 );
 
 $builder->create_build_script();

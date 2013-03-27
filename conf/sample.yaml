@@ -1,13 +1,9 @@
 database:
-  dsn: "dbi:Oracle:host=192.168.60.10;sid=dictybase"
-  user: DPUR_CHADO
-  pass: DPUR_CHADO
-  opt:  LongTruncOk 
+  dsn: dsn
+  user: user
+  pass: pass
+  opt:  opt
 
-cache:
- driver: 'Memcached::Fast'
- servers: '127.0.0.1:11211'
- namespace: resolver
 
 #which module to load at runtime which does the url mapping
 #currently a Moose role
@@ -25,15 +21,15 @@ cache:
 #
 mapper:
  dictybase:
-  match: '^[A-Z]{3}\S+$'
+  match: '^[A-Z]{2}\S+$'
   module: DoesMultiGenomeLegacy
   option:
      alias: 1
      database:
-         dsn: "dbi:Oracle:host=192.168.60.10;sid=dictybase"
-         user: CGM_CHADO
-         pass: CGM_CHADO
-         opt : LongTruncOk
+         dsn: dsn
+         user: user
+         pass: pass
+         opt : opt
     #Any specific type for SO type 
   resolve:
    types: 
@@ -66,10 +62,3 @@ mapper:
     prefix: feature
    trna:
     prefix: feature
- external:
-  match: '^\d+$'
-  module: DoesExternal
-  option:
-   url: 
-    base: 'http://sacgb.fli-leibniz.de/cgi/annsheet.pl?gid='
-    part: '&ssi=free'

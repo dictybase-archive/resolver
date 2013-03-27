@@ -3,7 +3,7 @@
 *.yaml*
 
 #however exclude the sample conf
-!*.sample*
+!*sample*
 !fcgi_conf.yaml
 !apache.conf
 
@@ -23,3 +23,7 @@ META
 
 #exclude Build.PL
 !Build.PL
+
+Rexfile*
+.carton/
+local/

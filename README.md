@@ -1,1 +1,1 @@
-Web application for mapping various dictyBase ids.
+Web application for mapping various dictyostelids ids.
