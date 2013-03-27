@@ -1,12 +1,16 @@
 #Ignore conf files
+*.conf
 *.yaml*
 
 #however exclude the sample conf
-!*.sample*
+!*sample*
+!fcgi_conf.yaml
+!apache.conf
 
 #exclude various folder
 log
 cache
+bundle*
 
 #Perl's build specific stuff
 Build
@@ -19,3 +23,7 @@ META
 
 #exclude Build.PL
 !Build.PL
+
+Rexfile*
+.carton/
+local/

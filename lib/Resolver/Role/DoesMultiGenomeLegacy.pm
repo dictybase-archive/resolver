@@ -1,14 +1,10 @@
 package Resolver::Role::DoesMultiGenomeLegacy;
 
-use strict;
-use version; our $VERSION = qv('1.0.0');
-
 # Other modules:
 use List::MoreUtils qw/any/;
 use Moose::Role;
 use MooseX::Aliases;
 use Bio::Chado::Schema;
-use Carp::Always;
 use namespace::autoclean;
 
 # Module implementation
@@ -27,14 +23,15 @@ has 'is_legacy' => (
 );
 
 sub revalidate {
-    my ( $self, $c ) = @_;
+    my ($self)      = @_;
     my $app         = $self->app;
-    my $id          = $c->stash('id');
-    my $mapper_name = $c->stash('mapper_name');
+    my $id          = $self->stash('id');
+    my $mapper_name = $self->stash('mapper_name');
     my $model;
     if ( $self->check_legacy_id($id) ) {
         if ( !$app->has_legacy_model ) {
-            my $legacy_conf = $app->config->mapper->$mapper_name->option->database;
+            my $legacy_conf
+                = $app->config->mapper->$mapper_name->option->database;
             my $opt
                 = $legacy_conf->meta->has_attribute('opt')
                 ? $legacy_conf->opt
@@ -62,6 +59,7 @@ sub revalidate {
     else {
         $model = $app->model;
     }
+
     my $query_row = $model->resultset('Sequence::Feature')->find(
         {   'is_deleted'       => 0,
             'dbxref.accession' => $id,
@@ -71,13 +69,14 @@ sub revalidate {
             select   => [
                 'feature_id',           'type_id',
                 'organism_id',          'organism.species',
-                'organism.organism_id', 'organism.genus'
+                'organism.organism_id', 'organism.genus',
+                'organism.common_name'
             ],
         }
     );
 
     if ( !$query_row ) {
-        $c->res->code(404);
+        $self->res->code(404);
         $self->render( text => "Given id $id not found" );
         return;
     }
@@ -85,21 +84,22 @@ sub revalidate {
     my $type = $query_row->type->name;
     $self->app->log->debug("got type $type");
     if ( !$self->check_map( $type, $mapper_name ) ) {
-        $c->res->code(404);
+        $self->res->code(404);
         $self->render(
             text => "Sorry cannot resolve " . $type . ' and ' . $id );
         return;
     }
     $self->app->log->debug("It can map $type");
 
-    $c->stash( type => lc $type );
-    $c->stash(
+    $self->stash( type => lc $type );
+    $self->stash(
         run_type => $self->is_legacy
         ? 'legacy_' . lc $type
         : lc $type
     );
-    $c->stash( feature => $query_row );
-    $c->stash( species => $query_row->organism->species );
+    $self->stash( feature     => $query_row );
+    $self->stash( species     => $query_row->organism->species );
+    $self->stash( common_name => $query_row->organism->common_name );
     return 1;
 }
 
@@ -118,16 +118,16 @@ sub check_map {
 }
 
 sub map_to_url {
-    my ( $self, $c ) = @_;
-    $self->revalidate($c);
+    my ($self) = @_;
+    $self->revalidate;
 
-    my $id       = $self->context->stash('id');
-    my $type     = $self->context->stash('type');
-    my $run_type = $self->context->stash('run_type');
-    my $base_url = $self->context->req->url->host;
+    my $id       = $self->stash('id');
+    my $type     = $self->stash('type');
+    my $run_type = $self->stash('run_type');
+    my $base_url = $self->req->url->host;
 
     my $config      = $self->app->config;
-    my $mapper_name = $c->stash('mapper_name');
+    my $mapper_name = $self->stash('mapper_name');
     my $mapper      = $config->mapper->$mapper_name;
 
     $base_url = $base_url ? 'http://' . $base_url . '/' : '/';
@@ -140,10 +140,10 @@ sub map_to_url {
     #global prepend defined
     if ( $mapper->meta->has_attribute('prepend') ) {
         if ( !$mapper->type->meta->has_attribute($type) ) {
-            $path = $self->prepend($c) . '/' . $path;
+            $path = $self->prepend . '/' . $path;
         }
-        elsif (!$mapper->type->$type->meta->has_attribute('nospecies') ) {
-            $path = $self->prepend($c) . '/' . $path;
+        elsif ( !$mapper->type->$type->meta->has_attribute('nospecies') ) {
+            $path = $self->prepend . '/' . $path;
         }
     }
     return $base_url . $path;
@@ -151,8 +151,8 @@ sub map_to_url {
 
 #this is kind of this role specific; kind of hard coded
 sub prepend {
-    my ( $self, $c ) = @_;
-    return $c->stash('species');
+    my ($self) = @_;
+    return $self->stash('common_name');
 }
 
 sub gene {
@@ -175,12 +175,12 @@ sub gene {
 sub transcript {
     my ( $self, $id, $mapper_name ) = @_;
     my $mapper = $self->app->config->mapper->$mapper_name;
-    my $type   = $self->context->stash('type');
+    my $type   = $self->stash('type');
     my $prepend
         = $mapper->type->$type->meta->has_attribute('prefix')
         ? $mapper->type->$type->prefix
         : $type;
-    my $feature = $self->context->stash('feature');
+    my $feature = $self->stash('feature');
     my $gene    = $feature->search_related(
         'feature_relationship_subjects',
         { 'type.name' => 'part_of', },
@@ -196,18 +196,45 @@ sub transcript {
 
 sub legacy_est {
     my ( $self, $id, $mapper_name ) = @_;
-    my $type    = $self->context->stash('type');
-    my $species = $self->context->stash('species');
+    my $type    = $self->stash('type');
+    my $species = $self->stash('species');
     return $species . '/db/cgi-bin/feature_page.pl?primary_id=' . $id;
 }
 
 sub est {
     my ( $self, $id ) = @_;
-    my $type = $self->context->stash('type');
-    return 'db/cgi-bin/feature_page.pl?primary_id=' . $id;
+    my $type = $self->stash('type');
+    return $self->prepend."/$type/$id";
 }
 
 sub polypeptide {
+    my ( $self, $id, $mapper_name ) = @_;
+    my $feature = $self->stash('feature');
+    my $rs = $feature->search_related(
+        'feature_relationship_subjects',
+        { 'type.name' => 'derives_from', },
+        { join        => 'type' }
+        )->search_related(
+        'object',
+        { 'type_2.name' => 'mRNA' },
+        { join          => 'type'}
+        )->search_related(
+        'feature_relationship_subjects',
+        { 'type_3.name' => 'part_of', },
+        { join        => 'type' }
+        )->search_related(
+        'object',
+        { 'type_4.name' => 'gene' },
+        { join          => 'type'});
+	my $gene_id = $rs->first->dbxref->accession;
+    my $type   = $self->stash('type');
+    my $mapper = $self->app->config->mapper->$mapper_name;
+    my $prepend
+        = $mapper->type->$type->meta->has_attribute('prefix')
+        ? $mapper->type->$type->prefix
+        : $type;
+    my $gene_url = $self->gene( $gene_id, $mapper_name );
+    return $gene_url . '/' . $prepend . '/' . $id;
 }
 
 alias rrna              => 'transcript';
@@ -224,7 +251,6 @@ alias legacy_chromosome => 'legacy_est';
 alias legacy_contig     => 'legacy_est';
 
 #
-no Moose::Role;
 
 1;    # Magic true value required at end of module
 

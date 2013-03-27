@@ -1,27 +1,28 @@
 #!/usr/bin/env perl
 
 use strict;
-use warnings;
-
-use Mojo::Client;
-use Mojo::Transaction;
 use Test::More qw/no_plan/;
-use Data::Dumper;
+use Test::Mojo;
+
+
+my $mode;
+
+BEGIN {
+    $mode = $ENV{MOJO_MODE} ? $ENV{MOJO_MODE} : undef;
+    $ENV{MOJO_MODE} = 'test';
+    #$ENV{MOJO_LOG_LEVEL} = 'debug';
+}
 
 use_ok('Resolver');
+my $t = Test::Mojo->new( app => 'Resolver' );
 
-# Prepare client and transaction
-my $client = Mojo::Client->new;
-
-#gene id
 my $id = '33102';
-my $tx = Mojo::Transaction->new_get( '/id/' . $id );
+my $client = $t->get_ok( '/id/' . $id );
+$client->status_is( 302, 'it redirects for external id' );
+$client->header_like(location => qr/$id/, 'has id in the url' );
+$client->header_like(location => qr/leibniz/, 'has institute signature in the url' );
 
-# Process request
-$client->process_app( 'Resolver', $tx );
 
-# Test response
-is( $tx->res->code, 301, 'got redirection for external id' );
-like( $tx->res->headers->location, qr/$id/, 'has id in the url' );
-like( $tx->res->headers->location,
-    qr/leibniz/, 'has institute signature in the url' );
+END {
+	$ENV{MOJO_MODE} = $mode if defined $mode;
+}
